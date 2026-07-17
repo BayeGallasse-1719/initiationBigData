@@ -1,0 +1,13 @@
+----------------------------------------------------------------
+Fri Jul 17 08:40:40 GMT 2026:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-019f-6f3c-2452-00000523c1d8 
+on database directory memory:/home/baye-gallasse/Documents/EMIA/LICENCE3/SEMESTRE1/BigData/InitiationBigData/databaseName=metastore_db with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@c387f44 
+Loaded from file:/home/baye-gallasse/spark/spark-3.5.8-bin-hadoop3/jars/derby-10.14.2.0.jar
+java.vendor=Ubuntu
+java.runtime.version=21.0.11+10-1-24.04.2-Ubuntu
+user.dir=/home/baye-gallasse/Documents/EMIA/LICENCE3/SEMESTRE1/BigData/InitiationBigData
+os.name=Linux
+os.arch=amd64
+os.version=6.17.0-40-generic
+derby.system.home=null
+Database Class Loader started - derby.database.classpath=''

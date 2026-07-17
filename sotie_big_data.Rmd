@@ -1,0 +1,52 @@
+---
+title: "Pratique Big Data"
+author: "Baye Gallasse"
+date: "2026-07-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Installation et chargement des packages necessaire
+Ici nous avons les packages necessaire pour effectuer les calculs et sortir les graphiques.
+Ils sont ggplot2, tidyverse, dplyr
+```{r, echo=FALSE, warning=FALSE}
+## install.packages("sparklyr")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+library(sparklyr)
+```
+
+Version de sparklyr installe
+```{r}
+packageVersion("sparklyr")
+```
+Toutes les versions disponibles sont:
+```{r}
+spark_available_versions()
+```
+Installer la version 3.0
+```{r}
+spark_install(version = "3.0")
+```
+Pour utiliser dans votre machine vous devez vous connecter a un cluster
+```{r}
+spark_sc <- spark_connect(
+  master = "local",
+  version = "3.0"
+)
+```
+
+
+
+
+
+
+
+
+
+
+
