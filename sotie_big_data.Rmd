@@ -30,15 +30,223 @@ spark_available_versions()
 ```
 Installer la version 3.0
 ```{r}
-spark_install(version = "3.0")
+#spark_install(version = "3.5")
 ```
-Pour utiliser dans votre machine vous devez vous connecter a un cluster
+# Pour utiliser dans votre machine vous devez vous connecter a un cluster
 ```{r}
 spark_sc <- spark_connect(
   master = "local",
-  version = "3.0"
+  version = "3.5"
 )
 ```
+
+# Resume de la base de donnee
+```{r}
+summary(iris)
+```
+
+# Verifier les desequilibres de classe
+```{r}
+plot(iris$Species, main="Histogramme des especes de fleurs")
+```
+# separation des donnees
+```{r}
+#install.packages("rsample")
+library(rsample)
+```
+
+# utiliser split pour stratifier sur la variable cible
+```{r}
+split <- initial_split(iris, strata = Species)
+```
+```{r}
+print(split)
+```
+```{r}
+train_data <- training(split)
+test_data <- testing(split)
+```
+
+```{r}
+print(nrow(train_data))
+print(nrow(test_data))
+```
+```{r}
+# permet de mesurer la performance du model
+#install.packages("parsnip")
+library(parsnip)
+```
+
+
+```{r}
+# instancier le model
+decision_tree <- decision_tree() |> 
+  set_engine("rpart") |> 
+  set_mode("classification")
+```
+
+```{r}
+# entrainer le model
+model_DT <- decision_tree |> 
+  fit(Species~ .,
+      data = train_data)
+```
+
+```{r}
+print(model_DT)
+```
+
+```{r}
+# prediction
+pred <- predict(model_DT, 
+                new_data = test_data)
+```
+
+```{r}
+# voir la prediction
+head(pred)
+```
+# Evaluation du model
+# Creons un dataframe des valeurs predits et les valeurs reelles
+```{r}
+model_evaluate <- pred |> 
+  mutate(classe_reelle = test_data$Species)
+
+```
+
+# Matrice de confusion
+```{r}
+#install.packages("yardstick")
+library(yardstick)
+```
+
+```{r}
+matrice_confusion <- conf_mat(
+  data = model_evaluate,
+  estimate = .pred_class,
+  truth = classe_reelle
+)
+```
+
+```{r}
+head(matrice_confusion)
+```
+
+```{r}
+# verifier les performances
+library(performance)
+library(ggplot2)
+library(dplyr)
+```
+
+# utilisation de tidymodels dans sparck
+```{r}
+head(mpg)
+```
+# copie de la base de depart
+```{r}
+data_copy_spark <- copy_to(spark_sc, mpg)
+```
+
+```{r}
+class(data_copy_spark)
+```
+
+# on implemente un model de RL dans spark
+```{r}
+model_lm_spark <- linear_reg() |> 
+  set_engine('spark') |> 
+  set_mode('regression') |> 
+  fit(hwy ~ displ + cyl + cty,
+      data=data_copy_spark)
+```
+
+# determinons la variance et l'erreur moyenne absolue
+```{r}
+glance(model_lm_spark)
+```
+
+
+
+
+
+
+# Construison de modele de risque de credits
+```{r}
+# Charger la base de donnee
+df <- spark_read_csv(
+  sc=spark_sc,
+  name = 'credit_risk_dataset',
+  path = 'credit_risk_dataset.csv',
+  header = TRUE,
+  infer_schema = TRUE,
+  delimiter = ","
+)
+```
+
+```{r}
+# verifier la classe de notre base de donnee
+class(df)
+```
+
+```{r}
+# Noms des variables
+colnames(df)
+```
+
+```{r}
+# verifier la base de donnee
+head(df)
+```
+
+```{r}
+# verifier la structure de la base
+glimpse(df)
+```
+
+```{r}
+# calculer le nbre de clients de la banque
+sdf_nrow(df)
+```
+```{r}
+sdf_describe(df)
+```
+
+# nbre de client qui sont defaut de paiment
+```{r}
+df |> 
+  group_by(loan_status) |> 
+  tally() |> 
+  mutate(nombre_client_defaut_ou_non = n/sum(n), na.rm = TRUE)
+```
+```{r}
+ggplot(df, aes(loan_status))+
+  geom_histogram(na.rm = TRUE)
+```
+
+```{r}
+# correlation entre les dependantes et independantes
+correlation <- function(features){
+  df |>
+    ggplot(aes(x = "", y = {{features}},
+               fill = as.factor(loan_status))) +
+    geom_boxplot(na.rm = TRUE) +
+    xlab("") +
+    guides(fill = guide_legend(title = "loan_status"))
+}
+```
+```{r}
+cols <- quos(person_age, person_income, person_home_ownership, person_emp_length,
+             loan_int_rate, loan_percent_income, cb_person_cred_hist_length)
+```
+
+```{r}
+map(cols, correlation)
+```
+
+
+
+
 
 
 
