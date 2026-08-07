@@ -243,17 +243,208 @@ cols <- quos(person_age, person_income, person_home_ownership, person_emp_length
 ```{r}
 map(cols, correlation)
 ```
+# construction d'un pipeline de machine learning avec spark
+```{r}
+seed = 123
+pipeline <- ml_pipeline(spark_sc) |> 
+  # imputation des valeurs manquantes par la mediane
+  ft_imputer(
+    input_cols =c(
+      "person_emp_length",
+      "loan_int_rate"
+    ) ,
+    output_cols = c(
+      "imput_person_emp_length",
+      "imput_loan_loan_int_rate"
+    ),
+    strategy = 'median'
+  ) |> 
+  # la transformation des variables categorielles en variables numeriques
+  # encoder les quali en numerique
+  ft_string_indexer(
+    input_col = "person_home_ownership",
+    output_col = "indexed_person_home_ownership"
+  ) |> 
+  ft_string_indexer(
+    input_col = "loan_intent",
+    output_col = "indexed_loan_intent"
+  ) |> 
+  ft_string_indexer(
+    input_col = "cb_person_default_on_file",
+    output_col = "indexed_cb_person_default_on_file"
+  ) |> 
+  ft_one_hot_encoder(
+    input_cols = c(
+      "indexed_person_home_ownership",
+      "indexed_loan_intent",
+      "indexed_cb_person_default_on_file"
+    ),
+    output_cols = c(
+      "index_person_home_ownership",
+      "index_loan_intent",
+      "index_cb_person_default_on_file"
+    )
+  ) |> 
+  # creation du vecteur de variable independante
+  # l'objectif est de rassembler dans une variable tous les variables explicatives
+  # qu'on appelle features
+  ft_vector_assembler(
+    input_cols = c(
+      "person_age",
+      "person_income",
+      "imput_person_emp_length",
+      "imput_loan_loan_int_rate",
+      "index_person_home_ownership",
+      "index_loan_intent",
+      "index_cb_person_default_on_file",
+      "loan_amnt",
+      "cb_person_cred_hist_length"
+    ),
+    output_col = "features"
+  ) |> 
+  # la standardisation
+  ft_standard_scaler(
+    input_col = "features",
+    output_col = "features_scaler"
+  ) |> 
+  # l'estimateur ML
+  ml_random_forest_classifier(
+    features_col = "features_scaler",
+    label_col = "loan_status",
+    seed = seed
+  )
+```
+
+```{r}
+class(pipeline)
+```
+
+# formation du model de machine learning
+```{r}
+sep_donnee <- sdf_random_split(
+  df,
+  training = 0.8,
+  testing = 0.2,
+  seed = seed
+)
+```
+
+# visualiser la separation
+```{r}
+sep_donnee
+```
+
+```{r}
+train <- sep_donnee$training
+test <- sep_donnee$testing
+print(sdf_nrow(train))
+print(sdf_nrow(test))
+```
+
+```{r}
+start_time <- Sys.time()
+model_pipeline <- ml_fit(
+  pipeline,
+  train
+)
+end_time <- Sys.time()
+print(end_time - start_time)
+```
+
+# Prediction sur les donnees de test
+```{r}
+prediction <- ml_predict(
+  model_pipeline,
+  test
+)
+```
 
 
+```{r}
+prediction |> 
+  sdf_separate_column("probability", c("proba0", "proba1")) |> 
+  select(loan_status, proba0, proba1, prediction) |> 
+  head(10)
+```
+# Evaluation de la performance du modele
+```{r}
+ml_binary_classification_evaluator(
+  x = prediction,
+  label_col = 'loan_status'
+)
+```
+
+# Optimisation des hyperparametresd
+# Grille de recherche
+```{r}
+recherche_grid <- list(
+  random_forest = list(
+    num_trees = c(20, 50, 100),
+    max_depth = c(3, 5, 10),
+    impurity = c("entropy", "gini")
+  )
+)
+print(recherche_grid)
+```
+
+# validation croise
+```{r}
+validation_croise <- ml_cross_validator(
+  spark_sc,
+  estimator = pipeline,
+  estimator_param_maps = recherche_grid,
+  evaluator = ml_binary_classification_evaluator(
+    spark_sc,
+    label_col = 'loan_status'
+  ),
+  num_folds = 5,
+  parallelism = 4
+)
+```
+
+```{r}
+validation_croise
+```
+# on entraine notre nouvelle modele
+```{r}
+ST <- Sys.time()
+validation_croise_model <- ml_fit(
+  validation_croise,
+  train
+)
+ET <- Sys.time()
+print(ET-ST)
+```
+```{r}
+validation_croise_model
+```
+# evaluation
+```{r}
+ml_validation_metrics(
+  validation_croise_model
+) |> arrange(-areaUnderROC)
+```
+# prediction sur les donnees de test
+```{r}
+prediction_sg <- ml_predict(
+  validation_croise_model,
+  test
+)
+```
+
+# performance
+```{r}
+ml_binary_classification_evaluator(
+  x = prediction_sg,
+  label_col = "loan_status"
+)
+```
 
 
-
-
-
-
-
-
-
+# sauvegarder le model 
+```{r}
+ml_save(validation_croise_model, "modele.pmml")
+```
 
 
 
