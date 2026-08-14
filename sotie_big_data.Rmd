@@ -241,6 +241,7 @@ cols <- quos(person_age, person_income, person_home_ownership, person_emp_length
 ```
 
 ```{r}
+library(purrr)
 map(cols, correlation)
 ```
 # construction d'un pipeline de machine learning avec spark
@@ -443,9 +444,11 @@ ml_binary_classification_evaluator(
 
 # sauvegarder le model 
 ```{r}
-ml_save(validation_croise_model, "modele.pmml")
+ml_save(validation_croise_model$best_model, 'model_credit')
 ```
 
+```{r}
 
+```
 
 
