@@ -5,9 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel
-from pyspark.sql.types import (
-    StructType, StructField, DoubleType, StringType, IntegerType
-)
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType, IntegerType
 
 # =============================================================================
 # 1. CONFIGURATION DE LA PAGE
@@ -20,161 +18,187 @@ st.set_page_config(
 )
 
 # =============================================================================
-# 2. DESIGN SYSTEM & CSS PERSONNALISÉ
+# 2. TAILWIND CSS CUSTOM
 # =============================================================================
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+def apply_tailwind_css():
+    st.markdown("""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
+        /* Global Styles */
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+        }
 
-    /* En-tête principal */
-    .main-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        padding: 2rem 2.5rem;
-        border-radius: 20px;
-        color: white;
-        margin-bottom: 2rem;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-    }
-    
-    .main-title {
-        font-size: 2.2rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        margin: 0;
-        color: #ffffff !important;
-    }
-    
-    .sub-title {
-        color: #94a3b8 !important;
-        font-size: 1.05rem;
-        font-weight: 400;
-        margin-top: 0.4rem;
-        margin-bottom: 0;
-    }
+        /* Main Header */
+        .main-header {
+            background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-    /* Cartes KPI Glassmorphism */
-    .kpi-card-v2 {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 1.5rem 1.25rem;
-        border-radius: 16px;
-        color: white;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    
-    .kpi-card-v2:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.3);
-    }
+        .main-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0;
+            color: white;
+        }
 
-    .kpi-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-    }
+        .sub-title {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            font-weight: 400;
+            margin-top: 0.5rem;
+        }
 
-    .kpi-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-    }
+        /* KPI Cards */
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid #E0F2FE;
+        }
 
-    .kpi-title {
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #94a3b8;
-    }
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
 
-    .kpi-num {
-        font-size: 1.9rem;
-        font-weight: 800;
-        color: #f8fafc;
-        line-height: 1.1;
-    }
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
 
-    .kpi-subtext {
-        font-size: 0.8rem;
-        color: #38bdf8;
-        margin-top: 0.5rem;
-        font-weight: 500;
-    }
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: #E0F2FE;
+            color: #3B82F6;
+        }
 
-    /* Boîte de résultat d'inférence */
-    .res-card {
-        padding: 2rem;
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-    }
-    
-    .res-high {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(185, 28, 28, 0.18) 100%);
-        border: 2px solid #ef4444;
-        color: #f87171;
-    }
-    
-    .res-low {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(4, 120, 87, 0.18) 100%);
-        border: 2px solid #10b981;
-        color: #34d399;
-    }
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748B;
+        }
 
-    .res-status {
-        font-size: 1.4rem;
-        font-weight: 800;
-        margin-bottom: 0.5rem;
-    }
+        .kpi-num {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1E40AF;
+            line-height: 1.1;
+        }
 
-    .res-percentage {
-        font-size: 2.8rem;
-        font-weight: 800;
-        line-height: 1;
-        margin: 0.8rem 0;
-    }
+        .kpi-subtext {
+            font-size: 0.8rem;
+            color: #3B82F6;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
 
-    /* Custom Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #0b0f19 !important;
-        border-right: 1px solid #1e293b;
-    }
-    
-    section[data-testid="stSidebar"] * {
-        color: #f1f5f9 !important;
-    }
+        /* Result Card */
+        .res-card {
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
 
-    /* Primary Button */
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        padding: 0.75rem 1.5rem !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
-        transition: all 0.2s ease !important;
-    }
+        .res-card:hover {
+            transform: translateY(-4px);
+        }
 
-    div.stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+        .res-high {
+            background: linear-gradient(135deg, #E0F2FE 0%, #B3E5FC 100%);
+            border: 2px solid #3B82F6;
+            color: #1E40AF;
+        }
 
+        .res-low {
+            background: linear-gradient(135deg, #E0F2FE 0%, #81D4FA 100%);
+            border: 2px solid #3B82F6;
+            color: #1E40AF;
+        }
+
+        .res-status {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .res-percentage {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin: 0.8rem 0;
+        }
+
+        /* Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: #1E40AF !important;
+            border-right: 1px solid #3B82F6;
+        }
+
+        section[data-testid="stSidebar"] * {
+            color: white !important;
+        }
+
+        /* Primary Button */
+        div.stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            padding: 0.75rem 1.5rem !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        div.stButton > button[kind="primary"]:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        /* Input Fields */
+        .stNumberInput, .stSelectbox, .stTextInput {
+            border-radius: 8px !important;
+            border: 1px solid #E0F2FE !important;
+        }
+
+        /* Expander */
+        .streamlit-expanderHeader {
+            background-color: #E0F2FE !important;
+            border-radius: 8px !important;
+            color: #1E40AF !important;
+            font-weight: 600 !important;
+        }
+
+        /* Plotly Charts */
+        .js-plotly-plot {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+apply_tailwind_css()
 
 # =============================================================================
 # 3. INITIALISATION DE SPARK ET CACHE
@@ -188,12 +212,10 @@ def get_spark_session():
             .config("spark.driver.memory", "2g")
             .getOrCreate())
 
-
 @st.cache_resource
 def load_spark_model(model_path: str):
     """Charge le PipelineModel de Spark."""
     return PipelineModel.load(model_path)
-
 
 @st.cache_data
 def load_credit_data(csv_path: str = "../credit_risk_dataset.csv"):
@@ -206,54 +228,56 @@ def load_credit_data(csv_path: str = "../credit_risk_dataset.csv"):
     except Exception:
         return None
 
-
 spark = get_spark_session()
 df_raw = load_credit_data()
-
 
 # =============================================================================
 # 4. BARRE DE NAVIGATION (SIDEBAR)
 # =============================================================================
-with st.sidebar:
-    st.markdown("""
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;">
-            <div style="background: #2563eb; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">💳</div>
-            <div>
-                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700;">Credit Analytics</h3>
-                <p style="margin: 0; font-size: 0.75rem; color: #94a3b8 !important;">Moteur PySpark ML</p>
+def render_sidebar():
+    with st.sidebar:
+        st.markdown("""
+            <div class="flex items-center gap-3 mb-4">
+                <div class="bg-white text-blue-600 w-10 h-10 rounded-lg flex items-center justify-center text-xl">💳</div>
+                <div>
+                    <h3 class="text-white text-lg font-bold">Credit Analytics</h3>
+                    <p class="text-blue-200 text-sm">Moteur PySpark ML</p>
+                </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    page = st.radio(
-        "Navigation",
-        options=[
-            "📊 Tableau de bord",
-            "🔮 Formulaire de prédiction",
-            "ℹ️ À propos"
-        ],
-        label_visibility="collapsed"
-    )
-    
-    st.markdown("---")
-    
-    st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.5); padding: 0.8rem; border-radius: 10px; border: 1px solid #334155; font-size: 0.8rem;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span style="height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block;"></span>
-                <b>Spark Engine Actif</b>
-            </div>
-            <span style="color: #94a3b8 !important;">Master: local[*]</span>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
+        st.markdown("---")
+
+        page = st.radio(
+            "Navigation",
+            options=[
+                "📊 Tableau de bord",
+                "🔮 Formulaire de prédiction",
+                "ℹ️ À propos"
+            ],
+            label_visibility="collapsed"
+        )
+
+        st.markdown("---")
+
+        st.markdown("""
+            <div class="bg-blue-100 text-blue-800 p-3 rounded-lg border border-blue-300">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="h-2 w-2 bg-green-500 rounded-full"></span>
+                    <b>Spark Engine Actif</b>
+                </div>
+                <span class="text-blue-600 text-sm">Master: local[*]</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+        return page
+
+page = render_sidebar()
 
 # =============================================================================
 # PAGE 1 : TABLEAU DE BORD DECISIONNEL
 # =============================================================================
-if page == "📊 Tableau de bord":
+def render_dashboard():
     st.markdown("""
         <div class="main-header">
             <h1 class="main-title">Tableau de bord du portefeuille</h1>
@@ -298,59 +322,65 @@ if page == "📊 Tableau de bord":
         pret_moy = filtered["loan_amnt"].mean() if total > 0 else 0
 
         k1, k2, k3, k4 = st.columns(4)
-        
+
         with k1:
             st.markdown(f"""
-            <div class="kpi-card-v2">
+            <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Portefeuille</span>
-                    <div class="kpi-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">👥</div>
+                    <div class="kpi-icon">👥</div>
                 </div>
                 <div class="kpi-num">{total:,}</div>
                 <div class="kpi-subtext">Demandes enregistrées</div>
             </div>
             """, unsafe_allow_html=True)
-            
+
         with k2:
             st.markdown(f"""
-            <div class="kpi-card-v2">
+            <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Taux de Défaut</span>
-                    <div class="kpi-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">📉</div>
+                    <div class="kpi-icon">📉</div>
                 </div>
                 <div class="kpi-num">{taux_defaut:.1f}%</div>
-                <div class="kpi-subtext" style="color: #f87171;">{n_defaut:,} clients à risque</div>
+                <div class="kpi-subtext">{n_defaut:,} clients à risque</div>
             </div>
             """, unsafe_allow_html=True)
-            
+
         with k3:
             st.markdown(f"""
-            <div class="kpi-card-v2">
+            <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Revenu Moyen</span>
-                    <div class="kpi-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">💵</div>
+                    <div class="kpi-icon">💵</div>
                 </div>
                 <div class="kpi-num">{revenu_moy:,.0f} €</div>
-                <div class="kpi-subtext" style="color: #34d399;">Par an par client</div>
+                <div class="kpi-subtext">Par an par client</div>
             </div>
             """, unsafe_allow_html=True)
-            
+
         with k4:
             st.markdown(f"""
-            <div class="kpi-card-v2">
+            <div class="kpi-card">
                 <div class="kpi-header">
                     <span class="kpi-title">Prêt Moyen</span>
-                    <div class="kpi-icon" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">🏦</div>
+                    <div class="kpi-icon">🏦</div>
                 </div>
                 <div class="kpi-num">{pret_moy:,.0f} €</div>
-                <div class="kpi-subtext" style="color: #c084fc;">Exposition moyenne</div>
+                <div class="kpi-subtext">Exposition moyenne</div>
             </div>
             """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         # Graphiques Plotly
-        plotly_template = "plotly_dark"
+        plotly_template = {
+            "layout": {
+                "font": {"family": "Inter"},
+                "paper_bgcolor": "rgba(0,0,0,0)",
+                "plot_bgcolor": "rgba(0,0,0,0)",
+            }
+        }
 
         c1, c2 = st.columns(2)
 
@@ -358,12 +388,11 @@ if page == "📊 Tableau de bord":
             fig1 = px.histogram(
                 filtered, x="loan_intent", color="loan_status",
                 barmode="group",
-                color_discrete_map={0: "#10b981", 1: "#ef4444"},
+                color_discrete_map={0: "#3B82F6", 1: "#1E40AF"},
                 labels={"loan_intent": "Motif", "loan_status": "Statut", "count": "Effectif"},
                 title="<b>Distribution des Défauts par Motif</b>",
-                template=plotly_template
             )
-            fig1.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="Plus Jakarta Sans"))
+            fig1.update_layout(plotly_template["layout"])
             st.plotly_chart(fig1, use_container_width=True)
 
         with c2:
@@ -371,13 +400,12 @@ if page == "📊 Tableau de bord":
             fig2 = px.scatter(
                 sample, x="person_income", y="loan_amnt",
                 color=sample["loan_status"].astype(str) if len(sample) > 0 else None,
-                color_discrete_map={"0": "#10b981", "1": "#ef4444"},
+                color_discrete_map={"0": "#3B82F6", "1": "#1E40AF"},
                 opacity=0.7,
                 labels={"person_income": "Revenu (€)", "loan_amnt": "Prêt (€)", "color": "Défaut"},
                 title="<b>Revenu vs Montant du Prêt</b>",
-                template=plotly_template
             )
-            fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="Plus Jakarta Sans"))
+            fig2.update_layout(plotly_template["layout"])
             st.plotly_chart(fig2, use_container_width=True)
 
         c3, c4 = st.columns(2)
@@ -386,29 +414,26 @@ if page == "📊 Tableau de bord":
             fig3 = px.pie(
                 filtered, names="person_home_ownership", hole=0.5,
                 title="<b>Statut de Propriété Immobilière</b>",
-                color_discrete_sequence=px.colors.qualitative.Bold,
-                template=plotly_template
+                color_discrete_sequence=["#3B82F6", "#1E40AF", "#60A5FA", "#93C5FD"],
             )
-            fig3.update_layout(paper_bgcolor='rgba(0,0,0,0)', font=dict(family="Plus Jakarta Sans"))
+            fig3.update_layout(plotly_template["layout"])
             st.plotly_chart(fig3, use_container_width=True)
 
         with c4:
             fig4 = px.box(
                 filtered, x="loan_status", y="loan_int_rate",
                 color="loan_status",
-                color_discrete_map={0: "#10b981", 1: "#ef4444"},
+                color_discrete_map={0: "#3B82F6", 1: "#1E40AF"},
                 labels={"loan_status": "Défaut (0=Non, 1=Oui)", "loan_int_rate": "Taux (%)"},
                 title="<b>Impact du Taux d'Intérêt sur le Risque</b>",
-                template=plotly_template
             )
-            fig4.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(family="Plus Jakarta Sans"))
+            fig4.update_layout(plotly_template["layout"])
             st.plotly_chart(fig4, use_container_width=True)
-
 
 # =============================================================================
 # PAGE 2 : FORMULAIRE D'INFERENCE (PREDICTION SPARK ML)
 # =============================================================================
-elif page == "🔮 Formulaire de prédiction":
+def render_prediction_form():
     st.markdown("""
         <div class="main-header">
             <h1 class="main-title">Évaluation du Risque Client</h1>
@@ -475,7 +500,7 @@ elif page == "🔮 Formulaire de prédiction":
         try:
             with st.spinner("Exécution de l'inférence via PySpark..."):
                 df_spark = spark.createDataFrame(input_data, schema=schema)
-                model = load_spark_model(f'{'../'}' + model_dir)
+                model = load_spark_model(f'../{model_dir}')
                 predictions = model.transform(df_spark)
 
                 row = predictions.select("prediction", "probability").collect()[0]
@@ -500,7 +525,7 @@ elif page == "🔮 Formulaire de prédiction":
                 else:
                     st.markdown(f"""
                     <div class="res-card res-low">
-                        <div class="res-status">✅ PROFIL ACCEPTE (RISQUE FAIBLE)</div>
+                        <div class="res-status">✅ PROFIL ACCEPTÉ</div>
                         <p style="margin:0; font-size:0.9rem; opacity:0.8;">Le profil présente des garanties suffisantes pour l'accord du prêt.</p>
                         <div class="res-percentage">{prob_default*100:.1f}%</div>
                         <span style="font-size:0.85rem; font-weight:600;">PROBABILITÉ DE DÉFAUT</span>
@@ -512,26 +537,26 @@ elif page == "🔮 Formulaire de prédiction":
                 fig = go.Figure(go.Indicator(
                     mode="gauge+number",
                     value=prob_default * 100,
-                    number={'suffix': "%", 'font': {'size': 36, 'family': 'Plus Jakarta Sans', 'color': '#ffffff'}},
-                    title={"text": "Indice de Risque de Crédit", "font": {"size": 16, "color": "#94a3b8"}},
+                    number={'suffix': "%", 'font': {'size': 36, 'family': 'Inter', 'color': '#1E40AF'}},
+                    title={"text": "Indice de Risque de Crédit", "font": {"size": 16, "color": "#3B82F6"}},
                     gauge={
-                        "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#475569"},
-                        "bar": {"color": "#3b82f6", "thickness": 0.25},
+                        "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#3B82F6"},
+                        "bar": {"color": "#3B82F6", "thickness": 0.25},
                         "bgcolor": "rgba(0,0,0,0)",
                         "borderwidth": 0,
                         "steps": [
-                            {"range": [0, 30], "color": "rgba(16, 185, 129, 0.2)"},
-                            {"range": [30, 60], "color": "rgba(245, 158, 11, 0.2)"},
-                            {"range": [60, 100], "color": "rgba(239, 68, 68, 0.2)"}
+                            {"range": [0, 30], "color": "rgba(74, 222, 128, 0.2)"},
+                            {"range": [30, 60], "color": "rgba(251, 191, 36, 0.2)"},
+                            {"range": [60, 100], "color": "rgba(248, 113, 113, 0.2)"}
                         ],
-                        "threshold": {"line": {"color": "#ef4444", "width": 3}, "value": 50}
+                        "threshold": {"line": {"color": "#1E40AF", "width": 3}, "value": 50}
                     }
                 ))
                 fig.update_layout(
                     height=250,
                     margin=dict(l=20, r=20, t=40, b=20),
                     paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(family="Plus Jakarta Sans")
+                    font=dict(family="Inter")
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -544,23 +569,45 @@ elif page == "🔮 Formulaire de prédiction":
                 st.error("🔴 **Refus Recommandé** : L'exposition au risque dépasse le seuil toléré.")
 
         except Exception as e:
-            st.error(f"Erreur lors de l'exécution Spark : {e}")
-
+            st.error(f"❌ Erreur lors de l'exécution Spark : {e}")
 
 # =============================================================================
 # PAGE 3 : A PROPOS
 # =============================================================================
-elif page == "ℹ️ À propos":
+def render_about():
     st.markdown("""
         <div class="main-header">
             <h1 class="main-title">À propos de l'application</h1>
-            <p class="sub-title">Architecture Big Data et Modélisation Predictive</p>
+            <p class="sub-title">Architecture Big Data et Modélisation Prédictive</p>
         </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("""
     ### 🏗️ Spécifications Techniques
     - **Engine Big Data** : PySpark (Session Spark en mode local `local[*]`)
     - **Algorithme ML** : Random Forest Classifier (`spark.ml`)
     - **Visualisation** : Plotly & Streamlit UI
+
+    ### 📌 Fonctionnalités Clés
+    - **Tableau de bord** : Analyse interactive des données de crédit avec des filtres dynamiques.
+    - **Formulaire de prédiction** : Évaluation du risque client en temps réel via un modèle Spark ML.
+    - **Design moderne** : Interface utilisateur intuitive et esthétique avec des cartes KPI et des graphiques avancés.
+
+    ### 🔧 Technologies Utilisées
+    - **Backend** : PySpark pour le traitement des données et l'apprentissage automatique.
+    - **Frontend** : Streamlit pour l'interface utilisateur, Plotly pour les visualisations.
+    - **Data** : Dataset de risque de crédit pour l'entraînement et l'évaluation du modèle.
+
+    ### 📜 À Propos
+    Cette application a été développée pour démontrer l'intégration de **PySpark ML** avec **Streamlit** afin de créer une solution complète pour l'analyse du risque de crédit.
     """)
+
+# =============================================================================
+# ROUTING DES PAGES
+# =============================================================================
+if page == "📊 Tableau de bord":
+    render_dashboard()
+elif page == "🔮 Formulaire de prédiction":
+    render_prediction_form()
+elif page == "ℹ️ À propos":
+    render_about()
